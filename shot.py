@@ -4,3 +4,5 @@ class Shot:
         self.rateOnFireY = rateOnFireY
         self.shot_directionX = shot_directionX
         self.shot_directionY = shot_directionY
+
+

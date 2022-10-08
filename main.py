@@ -17,6 +17,10 @@ green = ImageColor.getcolor("#50fa7b", "RGB")
 orange = ImageColor.getcolor("#ffb86c","RGB")
 yellow = ImageColor.getcolor("#f1fa8c","RGB")
 
+game_over = False
+start = False
+
+
 size = (800, 500)  # definimos el tamaño de la ventana
 
 screen = pygame.display.set_mode(size)  # creamos la ventana
@@ -24,32 +28,36 @@ screen = pygame.display.set_mode(size)  # creamos la ventana
 clock = pygame.time.Clock()
 
 # tamaño
-tam = 10
+global tam
 
 # mouse invisible => pygame.mouse.set_visible(0)
 # mouse visible => pygame.mouse.set_visible(1)
 
 # definimos la posicion y velocidad inicial del circulo
-playerPositionX = 30
-playerPositionY = 250
-speedX = 0
-speedY = 0
+global playerPositionX
+global playerPositionY
+global speedX
+global speedY
 
 # definimos la la direccion del tiro
-rateOnFireX = 0
-rateOnFireY = 0
+global rateOnFireX
+global rateOnFireY
 
-shot_direction = [-10, -10]
+global shot_direction
 
-enemyPositionX = 0
-enemyPositionY = 0
+global enemyPositionX
+global enemyPositionY
 
-count_direction = 0
+global count_direction
 
-coorListStars = []
+global coorListStars
 
-user_shot_list = []
-enemy_list = []
+global player_shot_drawing
+global enemy_shot_drawing
+global user_shot_list
+global enemy_list
+global shot_enemy_list
+global score_player
 
 
 def generate_stars_list():
@@ -102,10 +110,16 @@ def detect_shot():
 
 
 def detect_event():
-    global event
+    global event, game_over,start
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             sys.exit()
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if not start:
+                start = True
+            if game_over:
+                start = False
+                game_over = False
         detect_movement()
         detect_shot()
 
@@ -126,13 +140,13 @@ def frame_logic():
 def add_speed_enemy_shot():
     if len(enemy_list) > 0:
         for enemy in enemy_list:
-            if len(enemy.shot_enemy_list) > 0:
-                for enemyShot in enemy.shot_enemy_list:
+            if len(shot_enemy_list) > 0:
+                for enemyShot in shot_enemy_list:
                     if -5 <= enemyShot.shot_directionX <= 810 and -5 <= enemyShot.shot_directionY <= 510:
                         enemyShot.shot_directionX += enemyShot.rateOnFireX * 0.05
                         enemyShot.shot_directionY += enemyShot.rateOnFireY * 0.05
                     else:
-                        enemy.shot_enemy_list.remove(enemyShot)
+                        shot_enemy_list.remove(enemyShot)
 
 
 def create_enemy_shots():
@@ -142,7 +156,7 @@ def create_enemy_shots():
             if enemy_shot_validation():
                 rateOnFireX = (playerPositionX - enemy.positionX) / 60
                 rateOnFireY = (playerPositionY - enemy.positionY) / 60
-                enemy.shot_enemy_list.append(Shot(rateOnFireX, rateOnFireY, enemy.positionX, enemy.positionY))
+                shot_enemy_list.append(Shot(rateOnFireX, rateOnFireY, enemy.positionX, enemy.positionY))
 
 
 def enemy_shot_validation():
@@ -170,7 +184,11 @@ def player_shot_movement():
                 user_shot.shot_directionX += user_shot.rateOnFireX
                 user_shot.shot_directionY += user_shot.rateOnFireY
             else:
-                user_shot_list.remove(user_shot)
+                for shot in player_shot_drawing:
+                    if user_shot in shot:
+                        player_shot_drawing.remove(shot)
+                        if user_shot in user_shot_list:
+                            user_shot_list.remove(user_shot)
 
 
 def player_movement():
@@ -190,7 +208,20 @@ def player_movement():
 
 
 def player():
-    pygame.draw.circle(screen, green, (playerPositionX, playerPositionY), 10)
+    global enemy_shot_drawing, enemy_list, game_over,start
+    Player = pygame.draw.circle(screen, green, (playerPositionX, playerPositionY), 10)
+    if len(enemy_shot_drawing) > 0:
+        for shot in enemy_shot_drawing:
+            if Player.colliderect(shot[0]):
+                if shot[1] in shot_enemy_list:
+                    print(Player)
+                    print(shot,shot_enemy_list)
+                    enemy_shot_drawing.clear()
+                    enemy_list.clear()
+                    user_shot_list.clear()
+                    shot_enemy_list.clear()
+                    game_over = True
+                    start = False
 
 
 def relative_position_target():
@@ -199,7 +230,6 @@ def relative_position_target():
 
 def draw_frames():
     global count_direction
-    screen.fill(background)  # añedimos color de fondo
     # Zona de dibujo
     starts_loop()
     spawn_enemy_shot()
@@ -211,18 +241,30 @@ def draw_frames():
 
 
 def spawn_enemy_shot():
+    global score_player
     if len(enemy_list) > 0:
         for enemy in enemy_list:
-            pygame.draw.circle(screen, red, (enemy.positionX, enemy.positionY), 10)
-            if len(enemy.shot_enemy_list) > 0:
-                for enemyShot in enemy.shot_enemy_list:
-                    pygame.draw.circle(screen, red, (enemyShot.shot_directionX, enemyShot.shot_directionY), 4)
+            ENEMY = pygame.draw.circle(screen, red, (enemy.positionX, enemy.positionY), 10)
+            if len(player_shot_drawing)>0:
+                for shot in player_shot_drawing:
+                    if ENEMY.colliderect(shot[0]):
+                        if shot[1] in user_shot_list:
+                            user_shot_list.remove(shot[1])
+                            enemy_list.remove(enemy)
+                            player_shot_drawing.remove(shot)
+                            score_player += 1
+
+            if len(shot_enemy_list) > 0:
+                for enemyShot in shot_enemy_list:
+                    EnemyShot = pygame.draw.circle(screen, red, (enemyShot.shot_directionX, enemyShot.shot_directionY), 4)
+                    enemy_shot_drawing.append((EnemyShot, enemyShot))
 
 
 def draw_players_shot():
     if len(user_shot_list) > 0:
         for user_shot in user_shot_list:
-            pygame.draw.circle(screen, green, (user_shot.shot_directionX, user_shot.shot_directionY), 4)
+            UserShot = pygame.draw.circle(screen, green, (user_shot.shot_directionX, user_shot.shot_directionY), 4)
+            player_shot_drawing.append((UserShot, user_shot))
 
 
 def starts_loop():
@@ -239,13 +281,61 @@ def starts_loop():
             coordenada[1] = 0
 
 
-generate_stars_list()
-generate_enemies_list()
+def initialize_variables():
+    global tam, playerPositionX, playerPositionY, speedX, speedY, rateOnFireX, rateOnFireY, shot_direction, enemyPositionX, enemyPositionY, count_direction, coorListStars, player_shot_drawing, enemy_shot_drawing, user_shot_list, enemy_list, score_player, shot_enemy_list
+    # tamaño
+    tam = 10
+    # mouse invisible => pygame.mouse.set_visible(0)
+    # mouse visible => pygame.mouse.set_visible(1)
+    # definimos la posicion y velocidad inicial del circulo
+    playerPositionX = 30
+    playerPositionY = 250
+    speedX = 0
+    speedY = 0
+    # definimos la la direccion del tiro
+    rateOnFireX = 0
+    rateOnFireY = 0
+    shot_direction = [-10, -10]
+    enemyPositionX = 0
+    enemyPositionY = 0
+    count_direction = 0
+    coorListStars = []
+    player_shot_drawing = []
+    enemy_shot_drawing = []
+    user_shot_list = []
+    enemy_list = []
+    shot_enemy_list = []
+    score_player = 0
+
+
+def text_screen_gameOver_Start(texto):
+    font = pygame.font.SysFont("JetBrainsMono Nerd Font", 25)
+    text = font.render(texto, True, white)
+    centerX = (size[0] // 2) - (text.get_width() // 2)
+    centerY = (size[1] // 2) - (text.get_height() // 2)
+    screen.blit(text, [centerX, centerY])
 
 
 while True:
     detect_event()
-    frame_logic()
-    draw_frames()
+    screen.fill(background)  # añedimos color de fondo
+    if not game_over and not start:
+        initialize_variables()
+        text_screen_gameOver_Start("Click To Start")
+    if start:
+        if not enemy_list:
+            generate_enemies_list()
+        if not coorListStars:
+            generate_stars_list()
+        frame_logic()
+        draw_frames()
+
+        font = pygame.font.SysFont("JetBrainsMono Nerd Font", 25)
+        text = font.render("score : "+str(score_player), True, white)
+        centerX = (size[0] // 2) - (text.get_width() // 2)
+        screen.blit(text, [centerX, 0])
+
+    if game_over:
+        text_screen_gameOver_Start("Click To Screen Start")
     pygame.display.flip()
     clock.tick(60)
